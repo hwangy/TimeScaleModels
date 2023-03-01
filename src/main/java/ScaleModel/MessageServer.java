@@ -5,19 +5,28 @@ import ScaleModel.grpc.MessageReply;
 import ScaleModel.grpc.MessageRequest;
 import ScaleModel.util.Constants;
 import ScaleModel.util.GrpcUtil;
+import ScaleModel.util.Logging;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-public class ClientGRPC {
-    private final MessageGrpc.MessageBlockingStub blockingStub;
+public class MessageServer {
+    private final MessageGrpc.MessageBlockingStub receiverOne;
+    private final MessageGrpc.MessageBlockingStub receiverTwo;
 
-    public ClientGRPC(Channel channel) {
+    private static int idToPort(int id) {
+        return Constants.MESSAGE_PORT + id;
+    }
+
+    public MessageServer(Channel first, Channel second) {
         // Initialize stub which makes API calls.
-        blockingStub = MessageGrpc.newBlockingStub(channel);
+        receiverOne = MessageGrpc.newBlockingStub(first);
+        receiverTwo = MessageGrpc.newBlockingStub(second);
+
+
     }
 
     /**
@@ -25,9 +34,9 @@ public class ClientGRPC {
      * @param port          The port on which to start the receiver
      * @throws IOException  Thrown on network exception.
      */
-    private static Server startMessageReceiver(int port) throws IOException {
+    private static Server startMessageReceiver(int port, MessageCore core) throws IOException {
         Server server = Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
-                .addService(new MessageReceiverImpl())
+                .addService(new MessageReceiverImpl(core))
                 .build()
                 .start();
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -43,15 +52,30 @@ public class ClientGRPC {
     }
 
     public static void main(String[] args) throws Exception {
-        Scanner inputReader = new Scanner(System.in);
+        MessageCore core = new MessageCore();
 
-        // Get server IP address from user.
-        System.out.println("Enter the IP address of the server (leave blank for `localhost`).");
-        String address = inputReader.nextLine();
-        if (address == "") {
-            address = "localhost";
+        Set<Integer> offsets = new HashSet<>(Arrays.asList(0,1,2));
+        while (true) {
+            System.out.println("Enter a unique client identifier (0-2).");
+            Scanner inputReader = new Scanner(System.in);
+            String strOffset = inputReader.nextLine();
+            try {
+                int offset = Integer.parseInt(strOffset);
+                startMessageReceiver(idToPort(offset), core);
+                if (!offsets.contains(offset)) {
+                    throw new NumberFormatException();
+                } else {
+                    offsets.remove(offset);
+                    break;
+                }
+            } catch (NumberFormatException ex) {
+                Logging.logService("Invalid client identifer.");
+            }
         }
-        String target = String.format("%s:%d", address, Constants.API_PORT);
+
+        Iterator<Integer> it = offsets.iterator();
+        String targetOne = String.format("localhost:%d", idToPort(it.next()));
+        String targetTwo = String.format("localhost:%d", idToPort(it.next()));
 
         // Create a communication channel to the server, known as a Channel. Channels are thread-safe
         // and reusable. It is common to create channels at the beginning of your application and reuse
@@ -59,25 +83,24 @@ public class ClientGRPC {
         //
         // For the example we use plaintext insecure credentials to avoid needing TLS certificates. To
         // use TLS, use TlsChannelCredentials instead.
-        ManagedChannel channel = Grpc.newChannelBuilder(target, InsecureChannelCredentials.create())
+        ManagedChannel channelOne = Grpc.newChannelBuilder(targetOne, InsecureChannelCredentials.create())
+                .build();
+        ManagedChannel channelTwo = Grpc.newChannelBuilder(targetTwo, InsecureChannelCredentials.create())
                 .build();
 
-        String options = "Pick an option:\n" +
-                "0. Exit (and log-out).\n" +
-                "1. Create an account (and log-in). You must supply a unique user name (case-sensitive).\n" +
-                "2. List accounts (or a subset of the accounts, by text wildcard)\n" +
-                "3. Send a message to a recipient.\n" +
-                "4. Deliver undelivered messages to a particular user.\n" +
-                "5. Delete an account (and delete all undelivered messages).\n" +
-                "6. Log in to an existing account.";
-        int choice = -1;
-
         try {
+            MessageServer server = new MessageServer(channelOne, channelTwo);
+            while (true) {
+                /**
+                 * Logic Loop Here
+                 */
+            }
         } finally {
             // ManagedChannels use resources like threads and TCP connections. To prevent leaking these
             // resources the channel should be shut down when it will no longer be used. If it may be used
             // again leave it running.
-            channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+            channelOne.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+            channelTwo.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         }
     }
 
@@ -86,8 +109,15 @@ public class ClientGRPC {
      * it receives from the Server.
      */
     static class MessageReceiverImpl extends MessageGrpc.MessageImplBase {
+
+        private final MessageCore core;
+
+        public MessageReceiverImpl(MessageCore core) {
+            this.core = core;
+        }
         @Override
         public void sendMessage(MessageRequest req, StreamObserver<MessageReply> responseObserver) {
+            core.queueMessage(req);
             responseObserver.onNext(GrpcUtil.genSuccessfulReply());
             responseObserver.onCompleted();
         }
