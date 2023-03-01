@@ -107,6 +107,9 @@ public class MessageServer {
                 if (choice > 3) {
                     logicalTime++;
                 }
+            } 
+        }catch (Exception e) {
+            System.out.println("Exception: " + e);
         } finally {
             // ManagedChannels use resources like threads and TCP connections. To prevent leaking these
             // resources the channel should be shut down when it will no longer be used. If it may be used
@@ -114,13 +117,14 @@ public class MessageServer {
             channelOne.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
             channelTwo.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         }
+        }
     }
 
     /**
      * A simple message receiver implementation that prints out the messages
      * it receives from the Server.
      */
-    static class MessageReceiverImpl extends MessageGrpc.MessageImplBase {
+    class MessageReceiverImpl extends MessageGrpc.MessageImplBase {
 
         private final MessageCore core;
 
@@ -134,4 +138,3 @@ public class MessageServer {
             responseObserver.onCompleted();
         }
     }
-}
