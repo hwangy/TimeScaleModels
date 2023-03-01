@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.time.format.DateTimeFormatter;  
+import java.time.LocalDateTime;    
 
 public class MessageServer {
     private final MessageGrpc.MessageBlockingStub receiverOne;
@@ -101,33 +103,49 @@ public class MessageServer {
                  */
                 if(!core.messageQueueIsEmpty()) {
                     MessageRequest request = core.popMessage();
+                    int request_logical_time = request.getLogicalTime();
                     int message_queue_length = core.getMessageQueueLength();
-                    //logicalTime = ?? use request.getLogicalTime();
-                    Event requestEvent = new Event("Received a message.", 0, message_queue_length, logicalTime);
+                    // Check that this is how we should update the logical time -- especially when slides updated
+                    logicalTime = Math.max(logicalTime, request_logical_time) + 1;
+                    
+                    // We may want to format the system time nicer (here and below).
+                    String system_time = java.time.LocalDateTime.now().toString(); 
+                    Event requestEvent = new Event("Received a message.", system_time, message_queue_length, logicalTime);
                     Logging.logService(requestEvent.toString());
                 } else {
                     int choice = ThreadLocalRandom.current().nextInt(1, 11); 
                     if (choice == 1) {
                         // Send a message to target one
-                        
+                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
+                        server.receiverOne.sendMessage(request); 
+
                         logicalTime++;
-                        Event requestEvent = new Event("Sent message to " + targetOne, 0, logicalTime);
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Sent message to " + targetOne, system_time, logicalTime);
                         Logging.logService(requestEvent.toString());
                     } else if (choice == 2) {
                         // Send a message to target two
+                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
+                        server.receiverTwo.sendMessage(request);
 
                         logicalTime++;
-                        Event requestEvent = new Event("Sent message to " + targetTwo, 0, logicalTime);
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Sent message to " + targetTwo, system_time, logicalTime);
                         Logging.logService(requestEvent.toString());
                     } else if (choice == 3) {
                         // Send a message to target one and to target two
+                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
+                        server.receiverOne.sendMessage(request);
+                        server.receiverTwo.sendMessage(request);
 
                         logicalTime++;
-                        Event requestEvent = new Event("Sent message to " + targetOne + " and " + targetTwo, 0, logicalTime);
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Sent message to " + targetOne + " and " + targetTwo, system_time, logicalTime);
                         Logging.logService(requestEvent.toString());
                     } else if (choice > 3) {
                         logicalTime++;
-                        Event requestEvent = new Event("Internal event.", 0, logicalTime);
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Internal event.", system_time, logicalTime);
                         Logging.logService(requestEvent.toString());
                     }
                 }
