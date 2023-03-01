@@ -7,11 +7,11 @@ package ScaleModel.objects;
 public class Event {
 
     private final String event_description;
-    private final int system_time;
+    private final String system_time;
     private final int logical_clock_value;
     private final int message_queue_length;
 
-    public Event(String event_description, int system_time, int logical_clock_value) {
+    public Event(String event_description, String system_time, int logical_clock_value) {
         this.event_description = event_description;
         this.system_time = system_time;
         this.logical_clock_value = logical_clock_value;
@@ -19,7 +19,7 @@ public class Event {
         this.message_queue_length = -1;
     }
 
-    public Event(String event_description, int system_time, int message_queue_length, int logical_clock_value) {
+    public Event(String event_description, String system_time, int message_queue_length, int logical_clock_value) {
         this.event_description = event_description;
         this.system_time = system_time;
         this.message_queue_length = message_queue_length;
@@ -39,7 +39,7 @@ public class Event {
      * Fetch the system time associated with this Event
      * @return The system time
      */
-    public int getSystemTime() {   
+    public String getSystemTime() {   
         return this.system_time;
     }
 
