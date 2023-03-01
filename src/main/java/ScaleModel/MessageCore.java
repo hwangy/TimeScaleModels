@@ -7,6 +7,8 @@ import java.util.Queue;
 
 public class MessageCore {
     private final Queue<MessageRequest> messageQueue;
+    // TODO: this doesn't work
+    private final List<Event> eventList;
 
     public MessageCore() {
         messageQueue = new LinkedList<>();

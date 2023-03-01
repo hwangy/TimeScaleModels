@@ -11,6 +11,7 @@ import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 public class MessageServer {
@@ -53,6 +54,7 @@ public class MessageServer {
 
     public static void main(String[] args) throws Exception {
         MessageCore core = new MessageCore();
+        int logicalTime = 0;
 
         Set<Integer> offsets = new HashSet<>(Arrays.asList(0,1,2));
         while (true) {
@@ -88,13 +90,23 @@ public class MessageServer {
         ManagedChannel channelTwo = Grpc.newChannelBuilder(targetTwo, InsecureChannelCredentials.create())
                 .build();
 
+        // Decide clock frequency
+        int frequency = ThreadLocalRandom.current().nextInt(1, 7);
         try {
             MessageServer server = new MessageServer(channelOne, channelTwo);
             while (true) {
+                Thread.sleep(1000/frequency);
+
                 /**
                  * Logic Loop Here
                  */
-            }
+                int choice = 5; /* Done randomly */
+                if (choice == 1) {
+
+                }
+                if (choice > 3) {
+                    logicalTime++;
+                }
         } finally {
             // ManagedChannels use resources like threads and TCP connections. To prevent leaking these
             // resources the channel should be shut down when it will no longer be used. If it may be used
