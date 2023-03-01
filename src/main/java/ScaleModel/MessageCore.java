@@ -27,4 +27,12 @@ public class MessageCore {
     public MessageRequest popMessage() {
         return messageQueue.poll();
     }
+
+    public Boolean messageQueueIsEmpty() {
+        return messageQueue.isEmpty();
+    }
+
+    public int getMessageQueueLength() {
+        return messageQueue.size();
+    }
 }

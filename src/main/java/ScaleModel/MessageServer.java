@@ -8,6 +8,7 @@ import ScaleModel.util.GrpcUtil;
 import ScaleModel.util.Logging;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import ScaleModel.objects.Event;
 
 import java.io.IOException;
 import java.util.*;
@@ -26,8 +27,6 @@ public class MessageServer {
         // Initialize stub which makes API calls.
         receiverOne = MessageGrpc.newBlockingStub(first);
         receiverTwo = MessageGrpc.newBlockingStub(second);
-
-
     }
 
     /**
@@ -100,12 +99,37 @@ public class MessageServer {
                 /**
                  * Logic Loop Here
                  */
-                int choice = 5; /* Done randomly */
-                if (choice == 1) {
+                if(!core.messageQueueIsEmpty()) {
+                    MessageRequest request = core.popMessage();
+                    int message_queue_length = core.getMessageQueueLength();
+                    //logicalTime = ?? use request.getLogicalTime();
+                    Event requestEvent = new Event("Received a message.", 0, message_queue_length, logicalTime);
+                    Logging.logService(requestEvent.toString());
+                } else {
+                    int choice = ThreadLocalRandom.current().nextInt(1, 11); 
+                    if (choice == 1) {
+                        // Send a message to target one
+                        
+                        logicalTime++;
+                        Event requestEvent = new Event("Sent message to " + targetOne, 0, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    } else if (choice == 2) {
+                        // Send a message to target two
 
-                }
-                if (choice > 3) {
-                    logicalTime++;
+                        logicalTime++;
+                        Event requestEvent = new Event("Sent message to " + targetTwo, 0, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    } else if (choice == 3) {
+                        // Send a message to target one and to target two
+
+                        logicalTime++;
+                        Event requestEvent = new Event("Sent message to " + targetOne + " and " + targetTwo, 0, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    } else if (choice > 3) {
+                        logicalTime++;
+                        Event requestEvent = new Event("Internal event.", 0, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    }
                 }
             } 
         }catch (Exception e) {
