@@ -8,11 +8,14 @@ import ScaleModel.util.GrpcUtil;
 import ScaleModel.util.Logging;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import ScaleModel.objects.Event;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.time.format.DateTimeFormatter;  
+import java.time.LocalDateTime;    
 
 public class MessageServer {
     private final MessageGrpc.MessageBlockingStub receiverOne;
@@ -26,8 +29,6 @@ public class MessageServer {
         // Initialize stub which makes API calls.
         receiverOne = MessageGrpc.newBlockingStub(first);
         receiverTwo = MessageGrpc.newBlockingStub(second);
-
-
     }
 
     /**
@@ -100,13 +101,57 @@ public class MessageServer {
                 /**
                  * Logic Loop Here
                  */
-                int choice = 5; /* Done randomly */
-                if (choice == 1) {
+                if(!core.messageQueueIsEmpty()) {
+                    MessageRequest request = core.popMessage();
+                    int request_logical_time = request.getLogicalTime();
+                    int message_queue_length = core.getMessageQueueLength();
+                    // Check that this is how we should update the logical time -- especially when slides updated
+                    logicalTime = Math.max(logicalTime, request_logical_time) + 1;
+                    
+                    // We may want to format the system time nicer (here and below).
+                    String system_time = java.time.LocalDateTime.now().toString(); 
+                    Event requestEvent = new Event("Received a message.", system_time, message_queue_length, logicalTime);
+                    Logging.logService(requestEvent.toString());
+                } else {
+                    int choice = ThreadLocalRandom.current().nextInt(1, 11); 
+                    if (choice == 1) {
+                        // Send a message to target one
+                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
+                        server.receiverOne.sendMessage(request); 
 
+                        logicalTime++;
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Sent message to " + targetOne, system_time, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    } else if (choice == 2) {
+                        // Send a message to target two
+                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
+                        server.receiverTwo.sendMessage(request);
+
+                        logicalTime++;
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Sent message to " + targetTwo, system_time, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    } else if (choice == 3) {
+                        // Send a message to target one and to target two
+                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
+                        server.receiverOne.sendMessage(request);
+                        server.receiverTwo.sendMessage(request);
+
+                        logicalTime++;
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Sent message to " + targetOne + " and " + targetTwo, system_time, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    } else if (choice > 3) {
+                        logicalTime++;
+                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        Event requestEvent = new Event("Internal event.", system_time, logicalTime);
+                        Logging.logService(requestEvent.toString());
+                    }
                 }
-                if (choice > 3) {
-                    logicalTime++;
-                }
+            } 
+        }catch (Exception e) {
+            System.out.println("Exception: " + e);
         } finally {
             // ManagedChannels use resources like threads and TCP connections. To prevent leaking these
             // resources the channel should be shut down when it will no longer be used. If it may be used
@@ -114,13 +159,14 @@ public class MessageServer {
             channelOne.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
             channelTwo.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         }
+        }
     }
 
     /**
      * A simple message receiver implementation that prints out the messages
      * it receives from the Server.
      */
-    static class MessageReceiverImpl extends MessageGrpc.MessageImplBase {
+    class MessageReceiverImpl extends MessageGrpc.MessageImplBase {
 
         private final MessageCore core;
 
@@ -134,4 +180,3 @@ public class MessageServer {
             responseObserver.onCompleted();
         }
     }
-}

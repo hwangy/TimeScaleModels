@@ -52,8 +52,8 @@ sourceSets {
     }
 }
 
-task(runClientGRPC, dependsOn: 'classes', type: JavaExec) {
-    main = 'ScaleModel.ClientGRPC'
+task(runMessageServer, dependsOn: 'classes', type: JavaExec) {
+    main = 'ScaleModel.MessageServer'
     standardInput = System.in
     classpath = sourceSets.main.runtimeClasspath
 }
