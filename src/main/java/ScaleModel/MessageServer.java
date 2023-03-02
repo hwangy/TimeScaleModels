@@ -3,6 +3,7 @@ package ScaleModel;
 import ScaleModel.grpc.MessageGrpc;
 import ScaleModel.grpc.MessageReply;
 import ScaleModel.grpc.MessageRequest;
+import ScaleModel.objects.MessageReceivedEvent;
 import ScaleModel.util.Constants;
 import ScaleModel.util.GrpcUtil;
 import ScaleModel.util.Logging;
@@ -14,8 +15,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.time.format.DateTimeFormatter;  
-import java.time.LocalDateTime;    
 
 public class MessageServer {
     private final MessageGrpc.MessageBlockingStub receiverOne;
@@ -29,6 +28,20 @@ public class MessageServer {
         // Initialize stub which makes API calls.
         receiverOne = MessageGrpc.newBlockingStub(first);
         receiverTwo = MessageGrpc.newBlockingStub(second);
+    }
+
+    public void sendTimeToFirst(int logicalTime) {
+        MessageReply reply = receiverOne.sendMessage(MessageRequest.newBuilder().setLogicalTime(logicalTime).build());
+        if (!reply.getSuccess()) {
+            Logging.logService("Send message to first client failed.");
+        }
+    }
+
+    public void sendTimeToSecond(int logicalTime) {
+        MessageReply reply = receiverTwo.sendMessage(MessageRequest.newBuilder().setLogicalTime(logicalTime).build());
+        if (!reply.getSuccess()) {
+            Logging.logService("Send message to second client failed.");
+        }
     }
 
     /**
@@ -90,6 +103,26 @@ public class MessageServer {
                 .build();
         ManagedChannel channelTwo = Grpc.newChannelBuilder(targetTwo, InsecureChannelCredentials.create())
                 .build();
+        boolean serverOneConnected = false;
+        boolean serverTwoConnected = false;
+        Logging.logService("Waiting for connection...");
+        while (!serverOneConnected || !serverTwoConnected) {
+            Thread.sleep(1000);
+            if (!serverOneConnected) {
+                ConnectivityState state = channelOne.getState(true);
+                serverOneConnected = state.equals(ConnectivityState.READY);
+                if (serverOneConnected) {
+                    Logging.logService("Connection one established");
+                }
+            }
+            if (!serverTwoConnected) {
+                ConnectivityState state = channelTwo.getState(true);
+                serverTwoConnected = state.equals(ConnectivityState.READY);
+                if (serverTwoConnected) {
+                    Logging.logService("Connection two established");
+                }
+            }
+        }
 
         // Decide clock frequency
         int frequency = ThreadLocalRandom.current().nextInt(1, 7);
@@ -101,6 +134,7 @@ public class MessageServer {
                 /**
                  * Logic Loop Here
                  */
+                Event event = null;
                 if(!core.messageQueueIsEmpty()) {
                     MessageRequest request = core.popMessage();
                     int request_logical_time = request.getLogicalTime();
@@ -110,44 +144,48 @@ public class MessageServer {
                     
                     // We may want to format the system time nicer (here and below).
                     String system_time = java.time.LocalDateTime.now().toString(); 
-                    Event requestEvent = new Event("Received a message.", system_time, message_queue_length, logicalTime);
-                    Logging.logService(requestEvent.toString());
+                    event = new MessageReceivedEvent(
+                            "Received a message.", system_time, message_queue_length, logicalTime);
                 } else {
                     int choice = ThreadLocalRandom.current().nextInt(1, 11); 
                     if (choice == 1) {
                         // Send a message to target one
-                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
-                        server.receiverOne.sendMessage(request); 
+                        server.sendTimeToFirst(logicalTime);
 
                         logicalTime++;
                         String system_time = java.time.LocalDateTime.now().toString(); 
-                        Event requestEvent = new Event("Sent message to " + targetOne, system_time, logicalTime);
-                        Logging.logService(requestEvent.toString());
+                        event = new Event(
+                                Event.EventType.SENT_MESSAGE,
+                                "Sent message to " + targetOne, system_time, logicalTime);
                     } else if (choice == 2) {
                         // Send a message to target two
-                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
-                        server.receiverTwo.sendMessage(request);
+                        server.sendTimeToSecond(logicalTime);
 
                         logicalTime++;
                         String system_time = java.time.LocalDateTime.now().toString(); 
-                        Event requestEvent = new Event("Sent message to " + targetTwo, system_time, logicalTime);
-                        Logging.logService(requestEvent.toString());
+                        event = new Event(
+                                Event.EventType.SENT_MESSAGE,
+                                "Sent message to " + targetTwo, system_time, logicalTime);
                     } else if (choice == 3) {
                         // Send a message to target one and to target two
-                        MessageRequest request = MessageRequest.newBuilder().setLogicalTime(logicalTime).build();
-                        server.receiverOne.sendMessage(request);
-                        server.receiverTwo.sendMessage(request);
+                        server.sendTimeToFirst(logicalTime);
+                        server.sendTimeToSecond(logicalTime);
 
                         logicalTime++;
                         String system_time = java.time.LocalDateTime.now().toString(); 
-                        Event requestEvent = new Event("Sent message to " + targetOne + " and " + targetTwo, system_time, logicalTime);
-                        Logging.logService(requestEvent.toString());
+                        event = new Event(
+                                Event.EventType.SENT_MESSAGE,
+                                "Sent message to " + targetOne + " and " + targetTwo, system_time, logicalTime);
                     } else if (choice > 3) {
                         logicalTime++;
                         String system_time = java.time.LocalDateTime.now().toString(); 
-                        Event requestEvent = new Event("Internal event.", system_time, logicalTime);
-                        Logging.logService(requestEvent.toString());
+                        event = new Event(
+                                Event.EventType.SENT_MESSAGE, "Internal event.", system_time, logicalTime);
                     }
+                }
+                if (event != null) {
+                    core.recordEvent(event);
+                    Logging.logService(event.toString());
                 }
             } 
         }catch (Exception e) {

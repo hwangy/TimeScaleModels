@@ -9,7 +9,6 @@ import java.util.Queue;
 
 public class MessageCore {
     private final Queue<MessageRequest> messageQueue;
-    // TODO: this doesn't work
     private final List<Event> eventList;
 
     /**
@@ -18,6 +17,14 @@ public class MessageCore {
     public MessageCore() {
         messageQueue = new LinkedList<>();
         eventList = new LinkedList<>();
+    }
+
+    public void recordEvent(Event event) {
+        eventList.add(event);
+    }
+
+    public List<Event> getEventList() {
+        return eventList;
     }
 
     public void queueMessage(MessageRequest message) {
