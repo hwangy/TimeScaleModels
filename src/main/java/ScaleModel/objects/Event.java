@@ -30,8 +30,6 @@ public class Event {
         this.logical_clock_value = logical_clock_value;
     }
 
-
-
     /**
      * Fetch the event description associated with this Event
      * @return The event description
