@@ -72,7 +72,7 @@ public class MessageServer {
 
     public static void receiveMessage(MessageRequest message, MessageCore core) {
         int request_logical_time = message.getLogicalTime();
-        int message_queue_length = core.getMessageQueueLength();
+        int message_queue_length = core.getMessageQueueLength() - 1;
 
         core.setTimeToMax(request_logical_time);
         core.incrementTime();
@@ -83,9 +83,28 @@ public class MessageServer {
                 "Received a message.", system_time, message_queue_length, core.getTime()));
     }
 
+    private static void prettyPrintStatus(int frequency, MessageCore core) {
+        clearScreen();
+        // Print status
+        System.out.println("Polling " + frequency + " times per second.");
+        // Create string to represent message queue length
+        String messagesX = "X".repeat(core.getMessageQueueLength());
+
+        // Create string for last 3 events
+        String eventString = "Message Queue: (" + core.getMessageQueueLength() + ")\t" + messagesX + "\n";
+        List<Event> eventList = core.getEventList();
+        int lastIndex = Math.min(10, eventList.size());
+        List<Event> subList = eventList.subList(eventList.size() - lastIndex, eventList.size() - 1);
+        for (Event event : subList) {
+            String paddedTime = String.format("%3d", event.getLogicalClockValue());
+            eventString += "Time: " + paddedTime + "\t" + event.getEventType() +
+                    "\t" + event.getEventDescription() + "\n";
+        }
+        System.out.print(eventString);
+    }
+
     public static void main(String[] args) throws Exception {
         MessageCore core = new MessageCore();
-        int logicalTime = 0;
 
         Set<Integer> offsets = new HashSet<>(Arrays.asList(0,1,2));
         while (true) {
@@ -103,6 +122,28 @@ public class MessageServer {
                 }
             } catch (NumberFormatException ex) {
                 Logging.logService("Invalid client identifer.");
+            }
+        }
+
+        // Decide clock frequency
+        int frequency = ThreadLocalRandom.current().nextInt(1, 7);
+        while (true) {
+            System.out.println("Enter a poll rate (1-6) or random if unspecified.");
+            Scanner inputReader = new Scanner(System.in);
+            String strOffset = inputReader.nextLine();
+            try {
+                if (strOffset.isEmpty()) {
+                    break;
+                }
+                int tmpFrequency = Integer.parseInt(strOffset);
+                if (tmpFrequency > 6 || tmpFrequency < 1) {
+                    throw new NumberFormatException();
+                } else {
+                    frequency = tmpFrequency;
+                    break;
+                }
+            } catch (NumberFormatException ex) {
+                Logging.logService("Invalid poll rate.");
             }
         }
 
@@ -141,8 +182,6 @@ public class MessageServer {
             }
         }
 
-        // Decide clock frequency
-        int frequency = ThreadLocalRandom.current().nextInt(1, 7);
         try {
             MessageServer server = new MessageServer(channelOne, channelTwo);
             while (true) {
@@ -154,50 +193,52 @@ public class MessageServer {
                 Event event = null;
 
                 if(!core.messageQueueIsEmpty()) {
-                    MessageRequest request = core.popMessage();
+                    MessageRequest request = core.peakMessage();
                     receiveMessage(request, core);
+                    prettyPrintStatus(frequency, core);
+                    core.popMessage();
                 } else {
                     int choice = ThreadLocalRandom.current().nextInt(1, 11); 
                     if (choice == 1) {
                         // Send a message to target one
-                        server.sendTimeToFirst(logicalTime);
+                        server.sendTimeToFirst(core.getTime());
 
-                        logicalTime++;
+                        core.incrementTime();
                         String system_time = java.time.LocalDateTime.now().toString(); 
                         event = new Event(
                                 Event.EventType.SENT_MESSAGE,
-                                "Sent message to " + targetOne, system_time, logicalTime);
+                                "Sent message to " + targetOne, system_time, core.getTime());
                     } else if (choice == 2) {
                         // Send a message to target two
-                        server.sendTimeToSecond(logicalTime);
+                        server.sendTimeToSecond(core.getTime());
 
-                        logicalTime++;
+                        core.incrementTime();
                         String system_time = java.time.LocalDateTime.now().toString(); 
                         event = new Event(
                                 Event.EventType.SENT_MESSAGE,
-                                "Sent message to " + targetTwo, system_time, logicalTime);
+                                "Sent message to " + targetTwo, system_time, core.getTime());
                     } else if (choice == 3) {
                         // Send a message to target one and to target two
-                        server.sendTimeToFirst(logicalTime);
-                        server.sendTimeToSecond(logicalTime);
+                        server.sendTimeToFirst(core.getTime());
+                        server.sendTimeToSecond(core.getTime());
 
-                        logicalTime++;
+                        core.incrementTime();
                         String system_time = java.time.LocalDateTime.now().toString(); 
                         event = new Event(
                                 Event.EventType.SENT_MESSAGE,
-                                "Sent message to " + targetOne + " and " + targetTwo, system_time, logicalTime);
+                                "Sent message to " + targetOne + " and " + targetTwo, system_time, core.getTime());
                     } else if (choice > 3) {
-                        logicalTime++;
-                        String system_time = java.time.LocalDateTime.now().toString(); 
+                        core.incrementTime();
+                        String system_time = java.time.LocalDateTime.now().toString();
                         event = new Event(
-                                Event.EventType.SENT_MESSAGE, "Internal event.", system_time, logicalTime);
+                                Event.EventType.INTERNAL_EVENT, "Internal event.", system_time, core.getTime());
+                    }
+                    if (event != null) {
+                        core.recordEvent(event);
+                        prettyPrintStatus(frequency, core);
                     }
                 }
-                if (event != null) {
-                    core.recordEvent(event);
-                    Logging.logService(event.toString());
-                }
-            } 
+            }
         }catch (Exception e) {
             System.out.println("Exception: " + e);
         } finally {
