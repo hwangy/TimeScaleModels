@@ -30,6 +30,15 @@ public class MessageServer {
         receiverTwo = MessageGrpc.newBlockingStub(second);
     }
 
+    /**
+     * This constructor should only be called for testing.
+     */
+    public MessageServer() {
+        // Initialize stub which makes API calls.
+        receiverOne = null;
+        receiverTwo = null;
+    }
+
     public void sendTimeToFirst(int logicalTime) {
         MessageReply reply = receiverOne.sendMessage(MessageRequest.newBuilder().setLogicalTime(logicalTime).build());
         if (!reply.getSuccess()) {
@@ -97,10 +106,34 @@ public class MessageServer {
         List<Event> subList = eventList.subList(eventList.size() - lastIndex, eventList.size() - 1);
         for (Event event : subList) {
             String paddedTime = String.format("%3d", event.getLogicalClockValue());
-            eventString += "Time: " + paddedTime + "\t" + event.getEventType() +
-                    "\t" + event.getEventDescription() + "\n";
+            String paddedEventType = String.format("%20s", event.getEventType());
+            eventString += "Time: " + paddedTime + "\t" + paddedEventType +
+                    "\t\t" + event.getEventDescription() + "\n";
         }
         System.out.print(eventString);
+    }
+
+    public static void sendOneMessage(String target, MessageCore core) {
+        core.incrementTime();
+        String system_time = java.time.LocalDateTime.now().toString(); 
+        core.recordEvent(new Event(
+                Event.EventType.SENT_MESSAGE,
+                "Sent message to " + target, system_time, core.getTime()));
+    }
+
+    public static void sendTwoMessages(String targetOne, String targetTwo, MessageCore core){
+        core.incrementTime();
+        String system_time = java.time.LocalDateTime.now().toString(); 
+        core.recordEvent(new Event(
+                Event.EventType.SENT_MESSAGE,
+                "Sent message to " + targetOne + " and " + targetTwo, system_time, core.getTime()));
+    }
+
+    public static void internalEvent(MessageCore core) {
+        core.incrementTime();
+        String system_time = java.time.LocalDateTime.now().toString(); 
+        core.recordEvent(new Event(
+                Event.EventType.SENT_MESSAGE, "Internal event.", system_time, core.getTime()));
     }
 
     public static void main(String[] args) throws Exception {
@@ -190,8 +223,6 @@ public class MessageServer {
                 /**
                  * Logic Loop Here
                  */
-                Event event = null;
-
                 if(!core.messageQueueIsEmpty()) {
                     MessageRequest request = core.peakMessage();
                     receiveMessage(request, core);
@@ -202,43 +233,22 @@ public class MessageServer {
                     if (choice == 1) {
                         // Send a message to target one
                         server.sendTimeToFirst(core.getTime());
-
-                        core.incrementTime();
-                        String system_time = java.time.LocalDateTime.now().toString(); 
-                        event = new Event(
-                                Event.EventType.SENT_MESSAGE,
-                                "Sent message to " + targetOne, system_time, core.getTime());
+                        sendOneMessage(targetOne, core);
                     } else if (choice == 2) {
                         // Send a message to target two
                         server.sendTimeToSecond(core.getTime());
-
-                        core.incrementTime();
-                        String system_time = java.time.LocalDateTime.now().toString(); 
-                        event = new Event(
-                                Event.EventType.SENT_MESSAGE,
-                                "Sent message to " + targetTwo, system_time, core.getTime());
+                        sendOneMessage(targetTwo, core);
                     } else if (choice == 3) {
                         // Send a message to target one and to target two
                         server.sendTimeToFirst(core.getTime());
                         server.sendTimeToSecond(core.getTime());
-
-                        core.incrementTime();
-                        String system_time = java.time.LocalDateTime.now().toString(); 
-                        event = new Event(
-                                Event.EventType.SENT_MESSAGE,
-                                "Sent message to " + targetOne + " and " + targetTwo, system_time, core.getTime());
+                        sendTwoMessages(targetOne, targetTwo, core);
                     } else if (choice > 3) {
-                        core.incrementTime();
-                        String system_time = java.time.LocalDateTime.now().toString();
-                        event = new Event(
-                                Event.EventType.INTERNAL_EVENT, "Internal event.", system_time, core.getTime());
+                        internalEvent(core);
                     }
-                    if (event != null) {
-                        core.recordEvent(event);
-                        prettyPrintStatus(frequency, core);
-                    }
+                    prettyPrintStatus(frequency, core);
                 }
-            }
+            } 
         }catch (Exception e) {
             System.out.println("Exception: " + e);
         } finally {
