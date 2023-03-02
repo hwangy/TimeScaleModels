@@ -105,7 +105,7 @@ public class MessageServer {
                     MessageRequest request = core.popMessage();
                     int request_logical_time = request.getLogicalTime();
                     int message_queue_length = core.getMessageQueueLength();
-                    // Check that this is how we should update the logical time -- especially when slides updated
+                    // Double check that this is how we should update the logical time -- especially when slides updated
                     logicalTime = Math.max(logicalTime, request_logical_time) + 1;
                     
                     // We may want to format the system time nicer (here and below).
