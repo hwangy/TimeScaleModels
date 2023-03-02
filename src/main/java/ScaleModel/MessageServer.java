@@ -44,6 +44,10 @@ public class MessageServer {
         }
     }
 
+    private static void clearScreen() {
+        System.out.print("\033[H\033[2J");
+    }
+
     /**
      * Starts a service which allows the client to receive messages from the server.
      * @param port          The port on which to start the receiver
@@ -64,6 +68,19 @@ public class MessageServer {
             }
         });
         return server;
+    }
+
+    public static void receiveMessage(MessageRequest message, MessageCore core) {
+        int request_logical_time = message.getLogicalTime();
+        int message_queue_length = core.getMessageQueueLength();
+
+        core.setTimeToMax(request_logical_time);
+        core.incrementTime();
+
+        // We may want to format the system time nicer (here and below).
+        String system_time = java.time.LocalDateTime.now().toString();
+        core.recordEvent(new MessageReceivedEvent(
+                "Received a message.", system_time, message_queue_length, core.getTime()));
     }
 
     public static void main(String[] args) throws Exception {
@@ -135,17 +152,10 @@ public class MessageServer {
                  * Logic Loop Here
                  */
                 Event event = null;
+
                 if(!core.messageQueueIsEmpty()) {
                     MessageRequest request = core.popMessage();
-                    int request_logical_time = request.getLogicalTime();
-                    int message_queue_length = core.getMessageQueueLength();
-                    // Check that this is how we should update the logical time -- especially when slides updated
-                    logicalTime = Math.max(logicalTime, request_logical_time) + 1;
-                    
-                    // We may want to format the system time nicer (here and below).
-                    String system_time = java.time.LocalDateTime.now().toString(); 
-                    event = new MessageReceivedEvent(
-                            "Received a message.", system_time, message_queue_length, logicalTime);
+                    receiveMessage(request, core);
                 } else {
                     int choice = ThreadLocalRandom.current().nextInt(1, 11); 
                     if (choice == 1) {

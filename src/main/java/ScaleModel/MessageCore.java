@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Queue;
 
 public class MessageCore {
+    private int logicalTime;
     private final Queue<MessageRequest> messageQueue;
     private final List<Event> eventList;
 
@@ -15,8 +16,20 @@ public class MessageCore {
      * Default MessageCore constructor instantiates a new messageQueue.
      */
     public MessageCore() {
+        logicalTime = 0;
         messageQueue = new LinkedList<>();
         eventList = new LinkedList<>();
+    }
+
+    public int getTime() {
+        return logicalTime;
+    }
+    public void incrementTime() {
+        logicalTime++;
+    }
+
+    public void setTimeToMax(int time) {
+        logicalTime = Math.max(logicalTime, time);
     }
 
     public void recordEvent(Event event) {
