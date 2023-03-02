@@ -81,7 +81,7 @@ public class MessageServer {
 
     public static void receiveMessage(MessageRequest message, MessageCore core) {
         int request_logical_time = message.getLogicalTime();
-        int message_queue_length = core.getMessageQueueLength();
+        int message_queue_length = core.getMessageQueueLength() - 1;
 
         core.setTimeToMax(request_logical_time);
         core.incrementTime();
@@ -90,6 +90,27 @@ public class MessageServer {
         String system_time = java.time.LocalDateTime.now().toString();
         core.recordEvent(new MessageReceivedEvent(
                 "Received a message.", system_time, message_queue_length, core.getTime()));
+    }
+
+    private static void prettyPrintStatus(int frequency, MessageCore core) {
+        clearScreen();
+        // Print status
+        System.out.println("Polling " + frequency + " times per second.");
+        // Create string to represent message queue length
+        String messagesX = "X".repeat(core.getMessageQueueLength());
+
+        // Create string for last 3 events
+        String eventString = "Message Queue: (" + core.getMessageQueueLength() + ")\t" + messagesX + "\n";
+        List<Event> eventList = core.getEventList();
+        int lastIndex = Math.min(10, eventList.size());
+        List<Event> subList = eventList.subList(eventList.size() - lastIndex, eventList.size() - 1);
+        for (Event event : subList) {
+            String paddedTime = String.format("%3d", event.getLogicalClockValue());
+            String paddedEventType = String.format("%20s", event.getEventType());
+            eventString += "Time: " + paddedTime + "\t" + paddedEventType +
+                    "\t\t" + event.getEventDescription() + "\n";
+        }
+        System.out.print(eventString);
     }
 
     public static void sendOneMessage(String target, MessageCore core) {
@@ -117,7 +138,6 @@ public class MessageServer {
 
     public static void main(String[] args) throws Exception {
         MessageCore core = new MessageCore();
-        int logicalTime = 0;
 
         Set<Integer> offsets = new HashSet<>(Arrays.asList(0,1,2));
         while (true) {
@@ -135,6 +155,28 @@ public class MessageServer {
                 }
             } catch (NumberFormatException ex) {
                 Logging.logService("Invalid client identifer.");
+            }
+        }
+
+        // Decide clock frequency
+        int frequency = ThreadLocalRandom.current().nextInt(1, 7);
+        while (true) {
+            System.out.println("Enter a poll rate (1-6) or random if unspecified.");
+            Scanner inputReader = new Scanner(System.in);
+            String strOffset = inputReader.nextLine();
+            try {
+                if (strOffset.isEmpty()) {
+                    break;
+                }
+                int tmpFrequency = Integer.parseInt(strOffset);
+                if (tmpFrequency > 6 || tmpFrequency < 1) {
+                    throw new NumberFormatException();
+                } else {
+                    frequency = tmpFrequency;
+                    break;
+                }
+            } catch (NumberFormatException ex) {
+                Logging.logService("Invalid poll rate.");
             }
         }
 
@@ -173,8 +215,6 @@ public class MessageServer {
             }
         }
 
-        // Decide clock frequency
-        int frequency = ThreadLocalRandom.current().nextInt(1, 7);
         try {
             MessageServer server = new MessageServer(channelOne, channelTwo);
             while (true) {
@@ -183,31 +223,30 @@ public class MessageServer {
                 /**
                  * Logic Loop Here
                  */
-                Event event = null;
-
                 if(!core.messageQueueIsEmpty()) {
-                    MessageRequest request = core.popMessage();
-
+                    MessageRequest request = core.peakMessage();
                     receiveMessage(request, core);
-
+                    prettyPrintStatus(frequency, core);
+                    core.popMessage();
                 } else {
                     int choice = ThreadLocalRandom.current().nextInt(1, 11); 
                     if (choice == 1) {
                         // Send a message to target one
-                        server.sendTimeToFirst(logicalTime);
+                        server.sendTimeToFirst(core.getTime());
                         sendOneMessage(targetOne, core);
                     } else if (choice == 2) {
                         // Send a message to target two
-                        server.sendTimeToSecond(logicalTime);
+                        server.sendTimeToSecond(core.getTime());
                         sendOneMessage(targetTwo, core);
                     } else if (choice == 3) {
                         // Send a message to target one and to target two
-                        server.sendTimeToFirst(logicalTime);
-                        server.sendTimeToSecond(logicalTime);
+                        server.sendTimeToFirst(core.getTime());
+                        server.sendTimeToSecond(core.getTime());
                         sendTwoMessages(targetOne, targetTwo, core);
                     } else if (choice > 3) {
                         internalEvent(core);
                     }
+                    prettyPrintStatus(frequency, core);
                 }
             } 
         }catch (Exception e) {

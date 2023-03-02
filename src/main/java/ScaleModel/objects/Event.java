@@ -31,6 +31,14 @@ public class Event {
     }
 
     /**
+     * Fetches the event type of this event.
+     * @return  The event type
+     */
+    public EventType getEventType() {
+        return eventType;
+    }
+
+    /**
      * Fetch the event description associated with this Event
      * @return The event description
      */

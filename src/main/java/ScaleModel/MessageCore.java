@@ -3,6 +3,7 @@ package ScaleModel;
 import ScaleModel.grpc.MessageRequest;
 import ScaleModel.objects.Event;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -44,6 +45,9 @@ public class MessageCore {
         messageQueue.add(message);
     }
 
+    public MessageRequest peakMessage() {
+        return messageQueue.peek();
+    }
     public MessageRequest popMessage() {
         return messageQueue.poll();
     }
