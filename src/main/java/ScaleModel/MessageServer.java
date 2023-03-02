@@ -30,6 +30,15 @@ public class MessageServer {
         receiverTwo = MessageGrpc.newBlockingStub(second);
     }
 
+    /**
+     * This constructor should only be called for testing.
+     */
+    public MessageServer() {
+        // Initialize stub which makes API calls.
+        receiverOne = null;
+        receiverTwo = null;
+    }
+
     public void sendTimeToFirst(int logicalTime) {
         MessageReply reply = receiverOne.sendMessage(MessageRequest.newBuilder().setLogicalTime(logicalTime).build());
         if (!reply.getSuccess()) {
