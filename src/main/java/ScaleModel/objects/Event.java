@@ -6,25 +6,30 @@ package ScaleModel.objects;
  */
 public class Event {
 
+    public enum EventType {
+        SENT_MESSAGE(0),
+        RECEIVED_MESSAGE(1),
+        INTERNAL_EVENT(2);
+
+        private final int identifier;
+
+        EventType(int identifier) {
+            this.identifier = identifier;
+        }
+    }
+
+    private final EventType eventType;
     private final String event_description;
     private final String system_time;
     private final int logical_clock_value;
-    private final int message_queue_length;
 
-    public Event(String event_description, String system_time, int logical_clock_value) {
+    public Event(EventType eventType, String event_description, String system_time, int logical_clock_value) {
+        this.eventType = eventType;
         this.event_description = event_description;
         this.system_time = system_time;
         this.logical_clock_value = logical_clock_value;
-        // If don't input message queue length, it won't be needed and so set it to -1.
-        this.message_queue_length = -1;
     }
 
-    public Event(String event_description, String system_time, int message_queue_length, int logical_clock_value) {
-        this.event_description = event_description;
-        this.system_time = system_time;
-        this.message_queue_length = message_queue_length;
-        this.logical_clock_value = logical_clock_value;
-    }
 
 
     /**
@@ -51,26 +56,13 @@ public class Event {
         return this.logical_clock_value;
     }
 
-    /**
-     * Fetch the message queue length associated with this Event
-     * @return The message queue length
-     */
-    public int getMessageQueueLength() {
-        return this.message_queue_length;
-    }
 
     /**
      * Returns a String version of the Event (with the same information)
      */
     public String toString() {
-        String return_string = "";
-        if(message_queue_length >= 0) {
-             return_string = "Event: " + event_description + "; System time: " + system_time + "; Length of message queue: " + message_queue_length + "; Logical clock time: " + logical_clock_value;
-        } else if (message_queue_length == -1) {
-            return_string = "Event: " + event_description + "; System time: " + system_time + "; Logical clock time: " + logical_clock_value;
-        }
-
-        return return_string;
+        return "Event: " + event_description + "; System time: " + system_time +
+                "; Logical clock time: " + logical_clock_value;
     }
 
 }
