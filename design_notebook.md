@@ -42,6 +42,12 @@ For each client, the following is done.
 > we've refactored the logic in the main loop to separate methods to allow easier
 > unit testing.
 
+## March 3rd
+> **Bug**
+> There was a null pointer exception being returned in the tests. This was because if
+> `getSecondSinceStart` was called before the timer was initialized (which wasn't done
+> in the tests), the start time would be null. Added a special case to avoid this.
+
 **Behavior of the Logs**
 
 ***Test 1: Random clock cycles***
