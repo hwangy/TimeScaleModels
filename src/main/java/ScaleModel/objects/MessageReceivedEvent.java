@@ -4,7 +4,7 @@ public class MessageReceivedEvent extends Event {
 
     private final int message_queue_length;
 
-    public MessageReceivedEvent(String event_description, String system_time, int message_queue_length, int logical_clock_value) {
+    public MessageReceivedEvent(String event_description, long system_time, int message_queue_length, int logical_clock_value) {
         super(EventType.RECEIVED_MESSAGE, event_description, system_time, logical_clock_value);
         this.message_queue_length = message_queue_length;
     }

@@ -86,10 +86,8 @@ public class MessageServer {
         core.setTimeToMax(request_logical_time);
         core.incrementTime();
 
-        // We may want to format the system time nicer (here and below).
-        String system_time = java.time.LocalDateTime.now().toString();
         core.recordEvent(new MessageReceivedEvent(
-                "Received a message.", system_time, message_queue_length, core.getTime()));
+                "Received a message.", core.getSecondsSinceStart(), message_queue_length, core.getTime()));
     }
 
     private static void prettyPrintStatus(int frequency, MessageCore core) {
@@ -106,47 +104,49 @@ public class MessageServer {
         List<Event> subList = eventList.subList(eventList.size() - lastIndex, eventList.size() - 1);
         for (Event event : subList) {
             String paddedTime = String.format("%3d", event.getLogicalClockValue());
+            String paddedSystemTime = String.format("%3d", event.getSystemTime());
             String paddedEventType = String.format("%20s", event.getEventType());
-            eventString += "Time: " + paddedTime + "\t" + paddedEventType +
-                    "\t\t" + event.getEventDescription() + "\n";
+            long drift = event.getLogicalClockValue() - frequency*event.getSystemTime();
+            String paddedDrift = String.format("%3d", drift);
+            eventString += "Time: " + paddedTime + " (" + paddedSystemTime + "s, drift: " + paddedDrift + ")" +
+                    "\t" + paddedEventType +
+                    "\t" + event.getEventDescription() + "\n";
         }
         System.out.print(eventString);
     }
 
     public static void sendOneMessage(String target, MessageCore core) {
         core.incrementTime();
-        String system_time = java.time.LocalDateTime.now().toString(); 
         core.recordEvent(new Event(
                 Event.EventType.SENT_MESSAGE,
-                "Sent message to " + target, system_time, core.getTime()));
+                "Sent message to " + target, core.getSecondsSinceStart(), core.getTime()));
     }
 
     public static void sendTwoMessages(String targetOne, String targetTwo, MessageCore core){
         core.incrementTime();
-        String system_time = java.time.LocalDateTime.now().toString(); 
         core.recordEvent(new Event(
                 Event.EventType.SENT_MESSAGE,
-                "Sent message to " + targetOne + " and " + targetTwo, system_time, core.getTime()));
+                "Sent message to " + targetOne + " and " + targetTwo,
+                core.getSecondsSinceStart(), core.getTime()));
     }
 
     public static void internalEvent(MessageCore core) {
         core.incrementTime();
-        String system_time = java.time.LocalDateTime.now().toString(); 
         core.recordEvent(new Event(
-                Event.EventType.SENT_MESSAGE, "Internal event.", system_time, core.getTime()));
+                Event.EventType.SENT_MESSAGE, "Internal event.", core.getSecondsSinceStart(), core.getTime()));
     }
 
     public static void main(String[] args) throws Exception {
         MessageCore core = new MessageCore();
 
         Set<Integer> offsets = new HashSet<>(Arrays.asList(0,1,2));
+        int offset;
         while (true) {
             System.out.println("Enter a unique client identifier (0-2).");
             Scanner inputReader = new Scanner(System.in);
             String strOffset = inputReader.nextLine();
             try {
-                int offset = Integer.parseInt(strOffset);
-                startMessageReceiver(idToPort(offset), core);
+                offset = Integer.parseInt(strOffset);
                 if (!offsets.contains(offset)) {
                     throw new NumberFormatException();
                 } else {
@@ -179,6 +179,9 @@ public class MessageServer {
                 Logging.logService("Invalid poll rate.");
             }
         }
+
+        // Now start the receiver
+        startMessageReceiver(idToPort(offset), core);
 
         Iterator<Integer> it = offsets.iterator();
         String targetOne = String.format("localhost:%d", idToPort(it.next()));
@@ -217,6 +220,7 @@ public class MessageServer {
 
         try {
             MessageServer server = new MessageServer(channelOne, channelTwo);
+            core.setStartTime();
             while (true) {
                 Thread.sleep(1000/frequency);
 

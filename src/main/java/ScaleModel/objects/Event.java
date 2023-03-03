@@ -20,13 +20,14 @@ public class Event {
 
     private final EventType eventType;
     private final String event_description;
-    private final String system_time;
+
+    private final long elapsedSystemTime;
     private final int logical_clock_value;
 
-    public Event(EventType eventType, String event_description, String system_time, int logical_clock_value) {
+    public Event(EventType eventType, String event_description, long system_time, int logical_clock_value) {
         this.eventType = eventType;
         this.event_description = event_description;
-        this.system_time = system_time;
+        this.elapsedSystemTime = system_time;
         this.logical_clock_value = logical_clock_value;
     }
 
@@ -50,8 +51,8 @@ public class Event {
      * Fetch the system time associated with this Event
      * @return The system time
      */
-    public String getSystemTime() {   
-        return this.system_time;
+    public long getSystemTime() {
+        return this.elapsedSystemTime;
     }
 
     /**
@@ -67,7 +68,7 @@ public class Event {
      * Returns a String version of the Event (with the same information)
      */
     public String toString() {
-        return "Event: " + event_description + "; System time: " + system_time +
+        return "Event: " + event_description + "; System time: " + elapsedSystemTime +
                 "; Logical clock time: " + logical_clock_value;
     }
 

@@ -3,12 +3,15 @@ package ScaleModel;
 import ScaleModel.grpc.MessageRequest;
 import ScaleModel.objects.Event;
 
-import java.util.ArrayList;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
 public class MessageCore {
+
+    private Instant startTime = null;
     private int logicalTime;
     private final Queue<MessageRequest> messageQueue;
     private final List<Event> eventList;
@@ -27,6 +30,14 @@ public class MessageCore {
     }
     public void incrementTime() {
         logicalTime++;
+    }
+
+    public void setStartTime() {
+        startTime = Instant.now();
+    }
+
+    public long getSecondsSinceStart() {
+        return Duration.between(startTime, Instant.now()).toSeconds();
     }
 
     public void setTimeToMax(int time) {
