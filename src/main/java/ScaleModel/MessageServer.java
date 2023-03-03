@@ -133,7 +133,7 @@ public class MessageServer {
     public static void internalEvent(MessageCore core) {
         core.incrementTime();
         core.recordEvent(new Event(
-                Event.EventType.SENT_MESSAGE, "Internal event.", core.getSecondsSinceStart(), core.getTime()));
+                Event.EventType.INTERNAL_EVENT, "Internal event.", core.getSecondsSinceStart(), core.getTime()));
     }
 
     public static void main(String[] args) throws Exception {
@@ -169,7 +169,7 @@ public class MessageServer {
                     break;
                 }
                 int tmpFrequency = Integer.parseInt(strOffset);
-                if (tmpFrequency > 6 || tmpFrequency < 1) {
+                if (tmpFrequency > 20 || tmpFrequency < 1) {
                     throw new NumberFormatException();
                 } else {
                     frequency = tmpFrequency;
@@ -233,7 +233,7 @@ public class MessageServer {
                     prettyPrintStatus(frequency, core);
                     core.popMessage();
                 } else {
-                    int choice = ThreadLocalRandom.current().nextInt(1, 11); 
+                    int choice = ThreadLocalRandom.current().nextInt(1, 7);
                     if (choice == 1) {
                         // Send a message to target one
                         server.sendTimeToFirst(core.getTime());
