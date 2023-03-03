@@ -36,8 +36,17 @@ public class MessageCore {
         startTime = Instant.now();
     }
 
+    /**
+     * If the start time has been initialized, return the difference between
+     * the current time and the start. Otherwise return -1l.
+     * @return  The time delta
+     */
     public long getSecondsSinceStart() {
-        return Duration.between(startTime, Instant.now()).toSeconds();
+        if (startTime != null) {
+            return Duration.between(startTime, Instant.now()).toSeconds();
+        } else {
+            return -1l;
+        }
     }
 
     public void setTimeToMax(int time) {
